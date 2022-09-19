@@ -1,0 +1,42 @@
+version: "3"
+
+services:
+  datadog:
+    image: "datadog/agent:7.31.1"
+    ports:
+      - "127.0.0.1:8126:8126/tcp"
+    environment:
+      - DD_API_KEY={REDACTED}
+      - DD_LOGS_ENABLED=true
+      - DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL=true
+      - DD_PROCESS_AGENT_ENABLED=true
+      - DD_SITE=us3.datadoghq.com
+      - DD_DOCKER_LABELS_AS_TAGS={"my.custom.label.team":"team"}
+      - DD_TAGS='env:dev'
+      - DD_HOSTNAME=dev-host
+      - DD_APM_NON_LOCAL_TRAFFIC=true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup:/host/sys/fs/cgroup:ro
+
+  phone:
+    image: testfastapidd
+    build: .
+    command: bash -c 'echo starting && ddtrace-run uvicorn --host 0.0.0.0 --port 8080 main:app'
+    labels:
+      com.datadoghq.tags.env: "dev"
+      com.datadoghq.tags.service: "fast-test-service"
+      com.datadoghq.tags.version: "2.1"
+      com.datadoghq.ad.logs: '[{"source": "python", "service": "fast-test-service"}]'
+    ports:
+      - "8080:8080"
+    environment:
+      - DD_AGENT_HOST=datadog
+      - DD_SERVICE=fast-test-service
+      - DD_ENV=dev
+      - DD_TRACE_ENABLED=true
+      - DD_TRACE_DEBUG=true
+      - DD_LOGS_ENABLED=true
+      - DD_PROFILING_ENABLED=true
+      - DD_PROFILING_ENDPOINT_COLLECTION_ENABLED=true
